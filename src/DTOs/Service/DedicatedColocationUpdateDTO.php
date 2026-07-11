@@ -32,7 +32,7 @@ class DedicatedColocationUpdateDTO implements ServiceDataInterface
             'ips'               => $this->ips,
             'bandwidth'         => $this->bandwidth,
             'hasIXP'            => $this->hasIXP !== null ? (int) $this->hasIXP : null,
-            'rowtIndex'         => $this->rowIndex,
+            'rowIndex'          => $this->rowIndex,
             'racIndex'          => $this->racIndex,
             'unitIndex'         => $this->unitIndex,
             'units'             => $this->units,

@@ -10,6 +10,7 @@ use Shahkar\DataCenter\DTOs\Service\SharedWebHostingServiceDTO;
 use Shahkar\DataCenter\DTOs\Service\VpsServiceDTO;
 use Shahkar\DataCenter\DTOs\Service\CdnServiceDTO;
 use Shahkar\DataCenter\DTOs\Service\DedicatedColocationServiceDTO;
+use Shahkar\DataCenter\DTOs\Service\DedicatedColocationUpdateDTO;
 use Shahkar\DataCenter\Enums\DataCenterType;
 use Shahkar\DataCenter\Enums\IdentificationType;
 use Shahkar\DataCenter\Enums\ServiceType;
@@ -76,7 +77,7 @@ class DtoSerializationTest extends TestCase
     {
         $dto = new AddressDTO(
             provinceCode: '021',
-            address:      'خیابان آزادی',
+            address:      'Azadi Street',
             houseNumber:  '10',
             postalCode:   '1234567890',
         );
@@ -86,6 +87,44 @@ class DtoSerializationTest extends TestCase
         $this->assertArrayNotHasKey('street2', $arr);
         $this->assertArrayNotHasKey('tel', $arr);
         $this->assertSame('021', $arr['provinceCode']);
+    }
+
+    public function test_dedicated_server_dto_uses_rowindex_field_name(): void
+    {
+        $dto = new DedicatedColocationServiceDTO(
+            dataCenterId:      '34689999',
+            centerName:        'test',
+            dataCenterAddress: 'address',
+            ips:               '1.2.3.4-1.2.3.4',
+            bandwidth:         256,
+            startDate:         '14030101',
+            lat:               '35.68',
+            lon:               '51.38',
+            rowIndex:          7,
+            racIndex:          1,
+            unitIndex:         1,
+            dataCenterType:    DataCenterType::Colocation,
+        );
+        $arr = $dto->toArray();
+
+        $this->assertSame(DataCenterType::Colocation->value, $arr['dataCenterType']);
+        $this->assertSame(7, $arr['rowIndex']);
+        $this->assertArrayNotHasKey('rowtIndex', $arr);
+    }
+
+    public function test_dedicated_update_dto_uses_rowindex_field_name(): void
+    {
+        $dto = new DedicatedColocationUpdateDTO(
+            dataCenterId: 'DC001',
+            rowIndex:     10,
+            racIndex:     3,
+            unitIndex:    12,
+        );
+        $arr = $dto->toArray();
+
+        $this->assertSame(10, $arr['rowIndex']);
+        $this->assertArrayNotHasKey('rowtIndex', $arr);
+        $this->assertArrayNotHasKey('bandwidth', $arr); // null omitted
     }
 
     public function test_dedicated_server_dto_throws_on_wrong_type(): void
