@@ -6,8 +6,8 @@
     "keywords": ["laravel", "shahkar", "datacenter", "api"],
     "authors": [
         {
-            "name": "Shahkar",
-            "email": "dev@shahkar.ir"
+            "name": "Nima Barzegar",
+            "email": "nima@barzegar.eu"
         }
     ],
     "require": {
