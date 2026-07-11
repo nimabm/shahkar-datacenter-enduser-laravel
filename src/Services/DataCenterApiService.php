@@ -25,7 +25,7 @@ class DataCenterApiService implements DataCenterApiInterface
     ) {}
 
     /**
-     * Register a new data center service for a natural person (حقیقی).
+     * Register a new data center service for a natural person.
      * Call this twice:
      *   1st call: without otp → API sends OTP to subscriber
      *   2nd call: with otp populated in $person → API finalizes registration
@@ -47,7 +47,7 @@ class DataCenterApiService implements DataCenterApiInterface
     }
 
     /**
-     * Register a new data center service for a legal person (حقوقی).
+     * Register a new data center service for a legal person.
      * Call this twice:
      *   1st call: without otp/agentOtp → API sends two OTPs
      *   2nd call: with both otp and agentOtp populated in $person

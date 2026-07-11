@@ -55,7 +55,7 @@ class DataCenterApiServiceTest extends TestCase
 
         $response = $this->service->registerForNaturalPerson(
             person:  new NaturalPersonDTO('0987654321'),
-            address: new AddressDTO('021', 'خیابان آزادی', '10', '1234567890'),
+            address: new AddressDTO('021', 'Azadi Street', '10', '1234567890'),
             service: new SharedWebHostingServiceDTO('DC001', '1.2.3.4-1.2.3.4', 256, '14030101', 'cra.ir'),
         );
 
@@ -80,7 +80,7 @@ class DataCenterApiServiceTest extends TestCase
 
         $this->service->registerForLegalPerson(
             person:  new LegalPersonDTO('33273340437', '09128964532', '0072314567'),
-            address: new AddressDTO('021', 'خیابان آزادی', '10', '1234567890'),
+            address: new AddressDTO('021', 'Azadi Street', '10', '1234567890'),
             service: new SharedWebHostingServiceDTO('DC001', '1.2.3.4-1.2.3.4', 256, '14030101', 'cra.ir'),
         );
     }

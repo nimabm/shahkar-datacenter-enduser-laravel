@@ -49,7 +49,7 @@ class DedicatedColocationServiceDTO implements ServiceDataInterface
             'endDate'           => $this->endDate,
             'lat'               => $this->lat,
             'lon'               => $this->lon,
-            'rowtIndex'         => $this->rowIndex, // API uses "rowtIndex" (typo in spec)
+            'rowIndex'          => $this->rowIndex,
             'racIndex'          => $this->racIndex,
             'unitIndex'         => $this->unitIndex,
             'units'             => $this->units,
