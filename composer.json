@@ -1,0 +1,44 @@
+{
+    "name": "shahkar/datacenter",
+    "description": "Laravel package for Shahkar End-User Data Center API integration",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["laravel", "shahkar", "datacenter", "api"],
+    "authors": [
+        {
+            "name": "Shahkar",
+            "email": "dev@shahkar.ir"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "laravel/framework": "^10.0|^11.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0",
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Shahkar\\DataCenter\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Shahkar\\DataCenter\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Shahkar\\DataCenter\\ShahkarDataCenterServiceProvider"
+            ],
+            "aliases": {
+                "ShahkarDataCenter": "Shahkar\\DataCenter\\Facades\\ShahkarDataCenter"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
