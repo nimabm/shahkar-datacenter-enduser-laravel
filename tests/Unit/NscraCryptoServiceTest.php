@@ -5,6 +5,7 @@ namespace Shahkar\DataCenter\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Shahkar\DataCenter\Crypto\NscraCryptoService;
 use Shahkar\DataCenter\Exceptions\ShahkarApiException;
+use Shahkar\DataCenter\ShahkarDataCenterServiceProvider;
 
 class NscraCryptoServiceTest extends TestCase
 {
@@ -74,6 +75,22 @@ class NscraCryptoServiceTest extends TestCase
 
         $this->expectException(ShahkarApiException::class);
         $reader->decryptAndVerify($envelope);
+    }
+
+    public function test_bundled_server_public_key_is_valid_and_usable(): void
+    {
+        $bundled = ShahkarDataCenterServiceProvider::bundledServerPublicKeyPath();
+        $this->assertFileExists($bundled);
+
+        [$clientPriv, $clientPub] = self::generateKeyPair();
+
+        // Constructing with the bundled key (as server key) must parse it, and
+        // encryptAndSign must be able to encrypt for it.
+        $client = new NscraCryptoService('client', $clientPriv, $clientPub, $bundled);
+        $envelope = $client->encryptAndSign(['ok' => true], '/rest/shahkar/datacenter/put');
+
+        // Compact JWE = 5 segments (header.encryptedKey.iv.ciphertext.tag) => 4 dots.
+        $this->assertSame(4, substr_count($envelope, '.'));
     }
 
     public function test_exposes_client_id_and_public_key(): void

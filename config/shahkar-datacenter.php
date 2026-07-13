@@ -30,6 +30,8 @@ return [
     | client_private_key -> signs requests (ES256) and decrypts responses.
     | client_public_key  -> registered with the server via registerKey().
     | server_public_key  -> encrypts requests (ECDH-ES) and verifies responses.
+    |                       Leave empty to use the key bundled with the package;
+    |                       set SHAHKAR_SERVER_PUBLIC_KEY only to override it.
     */
     'client_private_key' => env('SHAHKAR_CLIENT_PRIVATE_KEY', ''),
     'client_public_key'  => env('SHAHKAR_CLIENT_PUBLIC_KEY', ''),
