@@ -2,17 +2,21 @@
 
 namespace Shahkar\DataCenter\Support;
 
+use DateTimeImmutable;
+use DateTimeZone;
+
 class RequestIdGenerator
 {
     /**
-     * Generate a unique request ID compatible with Shahkar API format.
-     * Format: operatorId + timestamp + random suffix
+     * Generate a unique request ID compatible with the NSCRA API format:
+     *   providerCode + Tehran-local timestamp (YmdHis + microseconds)
+     *
+     * Mirrors generate_request_id() in sample_python/main.py.
      */
-    public static function generate(string $operatorId = '013'): string
+    public static function generate(string $providerCode): string
     {
-        $timestamp = now()->format('YmdHis');
-        $random    = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Tehran'));
 
-        return $operatorId . $timestamp . $random;
+        return $providerCode . $now->format('YmdHisu');
     }
 }

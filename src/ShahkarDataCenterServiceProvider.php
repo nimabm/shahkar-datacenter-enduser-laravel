@@ -3,8 +3,10 @@
 namespace Shahkar\DataCenter;
 
 use Illuminate\Support\ServiceProvider;
+use Shahkar\DataCenter\Contracts\CryptoServiceInterface;
 use Shahkar\DataCenter\Contracts\DataCenterApiInterface;
 use Shahkar\DataCenter\Contracts\HttpClientInterface;
+use Shahkar\DataCenter\Crypto\NscraCryptoService;
 use Shahkar\DataCenter\Http\ShahkarHttpClient;
 use Shahkar\DataCenter\Services\DataCenterApiService;
 
@@ -17,16 +19,27 @@ class ShahkarDataCenterServiceProvider extends ServiceProvider
             'shahkar-datacenter'
         );
 
-        $this->app->singleton(HttpClientInterface::class, function ($app) {
-            return new ShahkarHttpClient(
-                config('shahkar-datacenter')
+        $this->app->singleton(HttpClientInterface::class, function () {
+            return new ShahkarHttpClient(config('shahkar-datacenter'));
+        });
+
+        $this->app->singleton(CryptoServiceInterface::class, function () {
+            $config = config('shahkar-datacenter');
+
+            return new NscraCryptoService(
+                clientId:             (string) ($config['client_id'] ?? ''),
+                clientPrivateKeyPem:  (string) ($config['client_private_key'] ?? ''),
+                clientPublicKeyPem:   (string) ($config['client_public_key'] ?? ''),
+                serverPublicKeyPem:   (string) ($config['server_public_key'] ?? ''),
+                clockSkew:            (int) ($config['clock_skew'] ?? 300),
             );
         });
 
         $this->app->singleton(DataCenterApiInterface::class, function ($app) {
             return new DataCenterApiService(
                 $app->make(HttpClientInterface::class),
-                config('shahkar-datacenter.operator_id', '013'),
+                $app->make(CryptoServiceInterface::class),
+                config('shahkar-datacenter.provider_code', ''),
             );
         });
     }
