@@ -14,6 +14,7 @@ use Shahkar\DataCenter\Contracts\DataCenterApiInterface;
  * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse delete(string $serviceId, ?string $requestId = null)
  * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse close(string $serviceId, ?string $requestId = null)
  * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse checkStatus(string $trackingId)
+ * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse sendRaw(string $action, array $data)
  *
  * @see \Shahkar\DataCenter\Services\DataCenterApiService
  */

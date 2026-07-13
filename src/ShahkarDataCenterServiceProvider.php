@@ -3,6 +3,8 @@
 namespace Shahkar\DataCenter;
 
 use Illuminate\Support\ServiceProvider;
+use Shahkar\DataCenter\Console\DataCenterConsole;
+use Shahkar\DataCenter\Console\GenerateKeyCommand;
 use Shahkar\DataCenter\Contracts\CryptoServiceInterface;
 use Shahkar\DataCenter\Contracts\DataCenterApiInterface;
 use Shahkar\DataCenter\Contracts\HttpClientInterface;
@@ -67,6 +69,11 @@ class ShahkarDataCenterServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../config/shahkar-datacenter.php' => config_path('shahkar-datacenter.php'),
             ], 'shahkar-datacenter-config');
+
+            $this->commands([
+                GenerateKeyCommand::class,
+                DataCenterConsole::class,
+            ]);
         }
     }
 }

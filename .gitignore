@@ -6,6 +6,7 @@ composer.lock
 .idea/
 .DS_Store
 
-# Never commit private/client keys. Keep only the sample server public key.
+# Never commit private/client keys. Keep only public server keys.
 *.pem
 !sample_python/PublicKey.pem
+!resources/keys/server_public_key.pem

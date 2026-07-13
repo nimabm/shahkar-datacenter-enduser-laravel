@@ -67,4 +67,13 @@ interface DataCenterApiInterface
 
     /** Poll the async result of a previously accepted request by its tracking id. */
     public function checkStatus(string $trackingId): ApiResponse;
+
+    /**
+     * Low-level escape hatch: sign+encrypt and send an arbitrary payload for the
+     * given action ('put', 'update' or 'delete'). Intended for tooling/testing.
+     * A requestId is generated if not present in $data.
+     *
+     * @param  array<string,mixed> $data
+     */
+    public function sendRaw(string $action, array $data): ApiResponse;
 }

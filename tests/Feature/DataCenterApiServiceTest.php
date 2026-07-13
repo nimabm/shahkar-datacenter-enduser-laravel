@@ -165,6 +165,25 @@ class DataCenterApiServiceTest extends TestCase
         $this->assertArrayNotHasKey('signedEncryptedPayload', $body);
     }
 
+    public function test_send_raw_maps_action_to_endpoint_and_adds_request_id(): void
+    {
+        $response = $this->service->sendRaw('update', ['id' => 'abc', 'serviceUpdate' => ['bandwidth' => 512]]);
+
+        $this->assertSame('/dc/update', $this->http->sent[0]['endpoint']);
+
+        $data = $this->lastInnerData();
+        $this->assertSame('abc', $data['id']);
+        $this->assertSame(512, $data['serviceUpdate']['bandwidth']);
+        $this->assertStringStartsWith('PRV', $data['requestId']);
+        $this->assertStringStartsWith('PRV', $response->requestId);
+    }
+
+    public function test_send_raw_rejects_unknown_action(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->sendRaw('frobnicate', ['id' => 'x']);
+    }
+
     public function test_check_status_calls_status_endpoint_and_returns_decrypted(): void
     {
         // "peer" acts as the server encrypting a response for our client key.

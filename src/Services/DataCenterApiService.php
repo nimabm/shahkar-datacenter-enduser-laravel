@@ -131,6 +131,24 @@ class DataCenterApiService implements DataCenterApiInterface
         return $this->delete($serviceId, $requestId);
     }
 
+    public function sendRaw(string $action, array $data): ApiResponse
+    {
+        [$endpoint, $path] = match ($action) {
+            'put'    => [self::EP_SEND, self::PATH_PUT],
+            'update' => [self::EP_UPDATE, self::PATH_UPDATE],
+            'delete' => [self::EP_DELETE, self::PATH_DELETE],
+            default  => throw new \InvalidArgumentException(
+                "Unknown action '{$action}'. Expected one of: put, update, delete."
+            ),
+        };
+
+        if (! isset($data['requestId'])) {
+            $data = array_merge($this->baseData(null), $data);
+        }
+
+        return $this->sendEncrypted($endpoint, $path, $data);
+    }
+
     public function checkStatus(string $trackingId): ApiResponse
     {
         $response = $this->client->get(self::EP_STATUS . rawurlencode($trackingId));
