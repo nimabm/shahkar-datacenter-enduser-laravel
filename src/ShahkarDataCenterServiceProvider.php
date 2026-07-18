@@ -4,9 +4,12 @@ namespace Shahkar\DataCenter;
 
 use Illuminate\Support\ServiceProvider;
 use Shahkar\DataCenter\Contracts\DataCenterApiInterface;
+use Shahkar\DataCenter\Contracts\DataCenterApiV92Interface;
 use Shahkar\DataCenter\Contracts\HttpClientInterface;
 use Shahkar\DataCenter\Http\ShahkarHttpClient;
 use Shahkar\DataCenter\Services\DataCenterApiService;
+use Shahkar\DataCenter\Services\DataCenterApiServiceV92;
+use Shahkar\DataCenter\Support\ShahkarDataCenterManager;
 
 class ShahkarDataCenterServiceProvider extends ServiceProvider
 {
@@ -27,6 +30,21 @@ class ShahkarDataCenterServiceProvider extends ServiceProvider
             return new DataCenterApiService(
                 $app->make(HttpClientInterface::class),
                 config('shahkar-datacenter.operator_id', '013'),
+            );
+        });
+
+        $this->app->singleton(DataCenterApiV92Interface::class, function ($app) {
+            return new DataCenterApiServiceV92(
+                $app->make(HttpClientInterface::class),
+                config('shahkar-datacenter.operator_id', '013'),
+                config('shahkar-datacenter.reseller_code', ''),
+            );
+        });
+
+        $this->app->singleton(ShahkarDataCenterManager::class, function ($app) {
+            return new ShahkarDataCenterManager(
+                $app,
+                config('shahkar-datacenter.default_version', '9.2'),
             );
         });
     }
