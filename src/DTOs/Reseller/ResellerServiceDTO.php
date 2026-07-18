@@ -2,6 +2,7 @@
 
 namespace Shahkar\DataCenter\DTOs\Reseller;
 
+use Shahkar\DataCenter\Enums\ServiceType;
 use InvalidArgumentException;
 
 /**
@@ -15,9 +16,6 @@ use InvalidArgumentException;
  */
 class ResellerServiceDTO
 {
-    /** Service type for the Reseller Code service. */
-    private const SERVICE_TYPE = 30;
-
     public function __construct(
         public readonly string  $resellerCode,
         public readonly string  $province,
@@ -34,7 +32,7 @@ class ResellerServiceDTO
     public function toArray(): array
     {
         return array_filter([
-            'type'         => self::SERVICE_TYPE,
+            'type'         => ServiceType::ResellerCode->value,
             'resellerCode' => $this->resellerCode,
             'province'     => $this->province,
             'ipStatic'     => $this->ipStatic !== null ? (int) $this->ipStatic : null,

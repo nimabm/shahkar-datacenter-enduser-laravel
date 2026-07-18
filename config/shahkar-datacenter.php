@@ -23,8 +23,9 @@ return [
     |--------------------------------------------------------------------------
     | Reseller Code
     |--------------------------------------------------------------------------
-    | Sent as "resellerCode" on every V9.2 request. Not used by the current
-    | (OTP) flow. Leave empty if you only use the current flow.
+    | The operator's own reseller code, sent as the top-level "resellerCode" on
+    | Data Center v9.2 and Reseller Code service requests. Not used by the v1.0
+    | (OTP) flow. Optional — leave empty if you don't use those services.
     */
     'reseller_code' => env('SHAHKAR_RESELLER_CODE', ''),
 

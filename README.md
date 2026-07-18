@@ -994,14 +994,16 @@ For the v1.0 flow, mock `DataCenterApiV1Interface` instead.
 
 ## Important Notes
 
+Applies to the **Data Center** service unless noted otherwise:
+
 - All IPs must be **public** and previously registered in Shahkar.
 - For **natural** persons: an active primary SIM registered in their own name is mandatory.
 - For **legal** persons: both a SIM registered to the legal person and the agent's primary SIM are required.
-- This service cannot be registered for people **under 18 years old**.
-- Service **transfer** is currently not supported.
+- The Data Center service cannot be registered for people **under 18 years old**.
+- Data Center service **transfer** is not supported (the **Reseller Code** service *does* support transfer — see its section).
 - Dates must be **Jalali (Solar Hijri)** in `YYYYMMDD` format (e.g. `14030101`).
 - The province must be sent as its **numeric code** (e.g. `021` for Tehran, not the province name).
-- **v9.2 only:** `resellerCode` (config `reseller_code`) is sent on every request.
+- **Data Center v9.2 & the Reseller Code service:** the operator's `resellerCode` (config `reseller_code`) is sent on every request; the v1.0 OTP flow does not use it.
 
 ---
 
