@@ -13,6 +13,9 @@ The package covers two things:
 - The standalone [**Estelaam** identity-inquiry service](#estelaam-identity-inquiry-service--shahkarinquiry) —
   verifies a person's identity (and postal code) against Shahkar's registry. Accessed via its
   own `ShahkarInquiry` facade; not part of the Data Center flow.
+- The standalone [**Reseller Code** service](#reseller-code-service--shahkarreseller) — registers,
+  updates, transfers, closes and deletes a reseller's sales code (service type 30). Accessed via
+  its own `ShahkarReseller` facade; not part of the Data Center flow.
 
 Jump straight to what you need; the sections are self-contained.
 
@@ -639,6 +642,133 @@ ShahkarInquiry::verifyLegalPerson(
 
 ---
 
+# Reseller Code service — `ShahkarReseller`
+
+Another **separate** Shahkar service (document **v9.4**, service **type 30**), independent of
+the Data Center web service. Operators use it to register a reseller's sales code, then update,
+transfer, close or delete it. It is single-step with no OTP, via its own `ShahkarReseller`
+facade. It shares the `rest/shahkar/{put,update,delete}` endpoints with other Shahkar services;
+Shahkar tells them apart by `service.type = 30`.
+
+**Two reseller codes, don't confuse them:**
+- The code you pass in `ResellerServiceDTO` is the code **being registered** — it becomes the
+  service's `serviceNumber` for later update/transfer/close/delete.
+- The top-level `resellerCode` (the requesting operator's own code) is taken from
+  `config('shahkar-datacenter.reseller_code')` and sent automatically.
+
+### Register
+
+```php
+use Shahkar\DataCenter\Facades\ShahkarReseller;
+use Shahkar\DataCenter\DTOs\Address\AddressDTO;
+use Shahkar\DataCenter\DTOs\Reseller\NaturalPersonResellerDTO;
+use Shahkar\DataCenter\DTOs\Reseller\LegalPersonResellerDTO;
+use Shahkar\DataCenter\DTOs\Reseller\ResellerServiceDTO;
+
+// ---- Natural person (Iranian) ----
+$response = ShahkarReseller::registerForNaturalPerson(
+    person: new NaturalPersonResellerDTO(
+        identificationNo: '0012345678',
+        name:             'سیدمحمد',
+        family:           'حسینی',
+        mobile:           '09121234567',
+        // iranian: true (default) -> identificationType 0
+        fatherName:       'جمشید',
+        birthDate:        '13671201',
+        birthPlace:       'تهران',
+        certificateNo:    '12345',
+        gender:           1,
+        email:            'test@email.com',
+    ),
+    service: new ResellerServiceDTO(
+        resellerCode: '9896',        // the code being registered (becomes serviceNumber)
+        province:     '021',
+        ipStatic:     true,          // when true, rangeIps is required
+        rangeIps:     '100.100.100.20-100.100.100.30,100.100.100.40-100.100.100.50',
+    ),
+    address: new AddressDTO(         // optional
+        provinceCode: '021',
+        address:      'خیابان مطهری، کوچه شهید احمدعلی نیری، پلاک 18',
+        houseNumber:  '18',
+        postalCode:   '1345676543',
+        townshipName: 'اسلامشهر',
+        street2:      'کوچه شهید احمدعلی نیری',
+        tel:          '02122334455',
+    ),
+);
+
+// ---- Legal person (foreign company; agent may still be Iranian) ----
+ShahkarReseller::registerForLegalPerson(
+    person: new LegalPersonResellerDTO(
+        identificationNo:      '357812321',
+        mobile:                '09121234567',
+        companyName:           'Apple',
+        agentIdentificationNo: '0012345678',
+        iranian:               false,          // company -> identificationType 6
+        agentIranian:          true,           // agent   -> agentIdentificationType 0
+        nationality:           'USA',
+        companyType:           4,
+        registrationDate:      '20201205',
+        registrationNo:        '223344',
+        agentFirstName:        'سیدمحمد',
+        agentLastName:         'حسینی',
+        agentNationality:      'IRN',
+        agentBirthDate:        '13691201',
+        agentBirthCertificateNo: '12345',
+        agentMobile:           '09121234567',
+    ),
+    service: new ResellerServiceDTO('9896', '021'),
+);
+```
+
+### Update
+
+```php
+use Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO;
+use Shahkar\DataCenter\DTOs\Reseller\ResellerServiceUpdateDTO;
+use Shahkar\DataCenter\DTOs\Reseller\CustomerUpdateResellerDTO;
+
+ShahkarReseller::update(
+    serviceId:      'jIdpWTbUBxoYThNn4a9g3zA088c5LgujZLBg4vm-rYs',
+    serviceNumber:  '9896',   // the reseller code assigned at registration
+    serviceUpdate:  new ResellerServiceUpdateDTO(ipStatic: true, rangeIps: '100.100.100.20-100.100.100.30'),
+    addressUpdate:  new AddressUpdateDTO(townshipName: 'فیروزکوه', postalCode: '7654316543'), // optional
+    customerUpdate: new CustomerUpdateResellerDTO(name: 'ساناز', email: 'sample@smp.com'),     // optional
+);
+```
+
+### Transfer to a new owner
+
+Moves the service to a new person; pass a full person DTO (and optionally their address).
+
+```php
+ShahkarReseller::transferToNaturalPerson(
+    serviceId:     'WZOzs3PX2rKTg4q-TH3W3YQI8a3pliprH-DGI9KGIz8',
+    serviceNumber: '9896',
+    person: new NaturalPersonResellerDTO(
+        identificationNo: '0031245698',
+        name:             'زهرا',
+        family:           'علوی',
+        mobile:           '09127654321',
+        fatherName:       'تقی',
+        birthDate:        '13750211',
+        certificateNo:    '6789',
+        gender:           2,
+    ),
+);
+
+// ShahkarReseller::transferToLegalPerson(...) works the same with a LegalPersonResellerDTO.
+```
+
+### Close and delete
+
+```php
+ShahkarReseller::close(serviceId: 'tw_VAEQOp7ri...', serviceNumber: '9896');  // update + "close": 1
+ShahkarReseller::delete(serviceId: 'tw_VAEQOp7ri...', serviceNumber: '9896'); // delete endpoint
+```
+
+---
+
 ## Service DTOs (shared)
 
 The **person** DTOs differ per version, but the **address** and **service** DTOs are the
@@ -864,14 +994,16 @@ For the v1.0 flow, mock `DataCenterApiV1Interface` instead.
 
 ## Important Notes
 
+Applies to the **Data Center** service unless noted otherwise:
+
 - All IPs must be **public** and previously registered in Shahkar.
 - For **natural** persons: an active primary SIM registered in their own name is mandatory.
 - For **legal** persons: both a SIM registered to the legal person and the agent's primary SIM are required.
-- This service cannot be registered for people **under 18 years old**.
-- Service **transfer** is currently not supported.
+- The Data Center service cannot be registered for people **under 18 years old**.
+- Data Center service **transfer** is not supported (the **Reseller Code** service *does* support transfer — see its section).
 - Dates must be **Jalali (Solar Hijri)** in `YYYYMMDD` format (e.g. `14030101`).
 - The province must be sent as its **numeric code** (e.g. `021` for Tehran, not the province name).
-- **v9.2 only:** `resellerCode` (config `reseller_code`) is sent on every request.
+- **Data Center v9.2 & the Reseller Code service:** the operator's `resellerCode` (config `reseller_code`) is sent on every request; the v1.0 OTP flow does not use it.
 
 ---
 
@@ -884,6 +1016,7 @@ src/
 │   ├── DataCenterApiV92Interface.php   # v9.2 flow ('9.2')
 │   ├── IpRegistrationApiInterface.php  # standalone putIP service (v1.5)
 │   ├── InquiryApiInterface.php         # standalone estelaam service (v1.4)
+│   ├── ResellerApiInterface.php        # standalone reseller service (v9.4)
 │   ├── HttpClientInterface.php
 │   └── ServiceDataInterface.php
 ├── DTOs/                   # Data Transfer Objects (type-safe)
@@ -893,6 +1026,12 @@ src/
 │   ├── Inquiry/                         # estelaam service
 │   │   ├── NaturalPersonInquiryDTO.php
 │   │   └── LegalPersonInquiryDTO.php
+│   ├── Reseller/                        # reseller code service
+│   │   ├── NaturalPersonResellerDTO.php
+│   │   ├── LegalPersonResellerDTO.php
+│   │   ├── ResellerServiceDTO.php
+│   │   ├── ResellerServiceUpdateDTO.php
+│   │   └── CustomerUpdateResellerDTO.php
 │   ├── Person/
 │   │   ├── NaturalPersonV1DTO.php         (natural person — v1.0 OTP)
 │   │   ├── LegalPersonV1DTO.php           (legal person — v1.0 OTP)
@@ -926,7 +1065,8 @@ src/
 │   ├── DataCenterApiServiceV1.php        # v1.0 OTP flow ('1.0')
 │   ├── DataCenterApiServiceV92.php     # v9.2 flow ('9.2')
 │   ├── IpRegistrationApiService.php    # standalone putIP service (v1.5)
-│   └── InquiryApiService.php           # standalone estelaam service (v1.4)
+│   ├── InquiryApiService.php           # standalone estelaam service (v1.4)
+│   └── ResellerApiService.php          # standalone reseller service (v9.4)
 ├── Support/
 │   ├── ShahkarDataCenterManager.php    # resolves the version to use
 │   ├── RequestIdGenerator.php
@@ -934,7 +1074,8 @@ src/
 └── Facades/
     ├── ShahkarDataCenter.php
     ├── ShahkarIp.php                   # facade for the putIP service
-    └── ShahkarInquiry.php              # facade for the estelaam service
+    ├── ShahkarInquiry.php              # facade for the estelaam service
+    └── ShahkarReseller.php             # facade for the reseller code service
 ```
 
 ---
