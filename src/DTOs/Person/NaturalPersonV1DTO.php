@@ -4,7 +4,7 @@ namespace Shahkar\DataCenter\DTOs\Person;
 
 use Shahkar\DataCenter\Enums\IdentificationType;
 
-class NaturalPersonDTO
+class NaturalPersonV1DTO
 {
     public function __construct(
         public readonly string $identificationNo,

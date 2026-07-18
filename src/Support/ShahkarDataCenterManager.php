@@ -4,20 +4,22 @@ namespace Shahkar\DataCenter\Support;
 
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
-use Shahkar\DataCenter\Contracts\DataCenterApiInterface;
+use Shahkar\DataCenter\Contracts\DataCenterApiV1Interface;
 use Shahkar\DataCenter\Contracts\DataCenterApiV92Interface;
 use Shahkar\DataCenter\Enums\ApiVersion;
 
 /**
- * Entry point that hands back the API implementation for a chosen document
- * version. This is what the ShahkarDataCenter facade resolves to.
+ * Entry point for choosing which API version to talk to. This is what the
+ * ShahkarDataCenter facade resolves to.
  *
- *   ShahkarDataCenter::version('9.2')->registerForNaturalPerson(...); // V9.2, no OTP
- *   ShahkarDataCenter::version('1.0')->registerForNaturalPerson(...); // new web service v1.0, OTP
- *   ShahkarDataCenter::registerForNaturalPerson(...);                 // the configured default
+ * Prefer the typed accessors — they return a concrete contract, so IDEs and
+ * static analysis know exactly which methods and DTOs apply:
  *
- * Calls made without version() are forwarded to the default version, set via
- * `config('shahkar-datacenter.default_version')`.
+ *   ShahkarDataCenter::v92()->registerForNaturalPerson(...); // v9.2, single-step, no OTP
+ *   ShahkarDataCenter::v1()->registerForNaturalPerson(...);  // v1.0, two-step OTP
+ *
+ * Use version()/default() only when the version is decided at runtime (e.g. read
+ * from config); they return a union of both contracts.
  */
 class ShahkarDataCenterManager
 {
@@ -27,13 +29,26 @@ class ShahkarDataCenterManager
     ) {}
 
     /**
-     * Resolve the implementation for a specific version.
-     *
-     * The union return type intentionally lists both contracts: each version's
-     * methods and DTOs differ, so callers work against the concrete version they
-     * asked for.
+     * Version 9.2 — single request, no OTP.
      */
-    public function version(ApiVersion|string $version): DataCenterApiInterface|DataCenterApiV92Interface
+    public function v92(): DataCenterApiV92Interface
+    {
+        return $this->app->make(DataCenterApiV92Interface::class);
+    }
+
+    /**
+     * Version 1.0 — the new web service, two-step OTP flow.
+     */
+    public function v1(): DataCenterApiV1Interface
+    {
+        return $this->app->make(DataCenterApiV1Interface::class);
+    }
+
+    /**
+     * Resolve a version chosen at runtime. Returns a union of both contracts, so
+     * prefer v92()/v1() when the version is known at author time.
+     */
+    public function version(ApiVersion|string $version): DataCenterApiV1Interface|DataCenterApiV92Interface
     {
         $version = $version instanceof ApiVersion
             ? $version
@@ -42,24 +57,17 @@ class ShahkarDataCenterManager
             ));
 
         return match ($version) {
-            ApiVersion::V1_0 => $this->app->make(DataCenterApiInterface::class),
-            ApiVersion::V9_2 => $this->app->make(DataCenterApiV92Interface::class),
+            ApiVersion::V1_0 => $this->v1(),
+            ApiVersion::V9_2 => $this->v92(),
         };
     }
 
     /**
-     * The implementation for the configured default version.
+     * The implementation for the version configured in
+     * `shahkar-datacenter.default_version`.
      */
-    public function default(): DataCenterApiInterface|DataCenterApiV92Interface
+    public function default(): DataCenterApiV1Interface|DataCenterApiV92Interface
     {
         return $this->version($this->defaultVersion);
-    }
-
-    /**
-     * Forward calls made without an explicit version() to the default version.
-     */
-    public function __call(string $method, array $arguments): mixed
-    {
-        return $this->default()->{$method}(...$arguments);
     }
 }

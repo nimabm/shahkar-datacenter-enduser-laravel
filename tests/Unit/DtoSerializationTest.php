@@ -4,8 +4,8 @@ namespace Shahkar\DataCenter\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Shahkar\DataCenter\DTOs\Address\AddressDTO;
-use Shahkar\DataCenter\DTOs\Person\LegalPersonDTO;
-use Shahkar\DataCenter\DTOs\Person\NaturalPersonDTO;
+use Shahkar\DataCenter\DTOs\Person\LegalPersonV1DTO;
+use Shahkar\DataCenter\DTOs\Person\NaturalPersonV1DTO;
 use Shahkar\DataCenter\DTOs\Service\SharedWebHostingServiceDTO;
 use Shahkar\DataCenter\DTOs\Service\VpsServiceDTO;
 use Shahkar\DataCenter\DTOs\Service\CdnServiceDTO;
@@ -19,7 +19,7 @@ class DtoSerializationTest extends TestCase
 {
     public function test_natural_person_dto_serializes_without_otp(): void
     {
-        $dto = new NaturalPersonDTO(identificationNo: '0987654321');
+        $dto = new NaturalPersonV1DTO(identificationNo: '0987654321');
         $arr = $dto->toArray();
 
         $this->assertSame(IdentificationType::NationalCode->value, $arr['identificationType']);
@@ -30,7 +30,7 @@ class DtoSerializationTest extends TestCase
 
     public function test_natural_person_dto_serializes_with_otp(): void
     {
-        $dto = new NaturalPersonDTO(identificationNo: '0987654321', otp: 12345);
+        $dto = new NaturalPersonV1DTO(identificationNo: '0987654321', otp: 12345);
         $arr = $dto->toArray();
 
         $this->assertSame(12345, $arr['otp']);
@@ -38,7 +38,7 @@ class DtoSerializationTest extends TestCase
 
     public function test_legal_person_dto_includes_all_required_fields(): void
     {
-        $dto = new LegalPersonDTO(
+        $dto = new LegalPersonV1DTO(
             identificationNo:      '33273340437',
             mobileNumber:          '09128964532',
             agentIdentificationNo: '0072314567',

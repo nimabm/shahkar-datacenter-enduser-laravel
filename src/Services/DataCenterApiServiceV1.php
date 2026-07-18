@@ -2,18 +2,18 @@
 
 namespace Shahkar\DataCenter\Services;
 
-use Shahkar\DataCenter\Contracts\DataCenterApiInterface;
+use Shahkar\DataCenter\Contracts\DataCenterApiV1Interface;
 use Shahkar\DataCenter\Contracts\HttpClientInterface;
 use Shahkar\DataCenter\Contracts\ServiceDataInterface;
 use Shahkar\DataCenter\DTOs\Address\AddressDTO;
 use Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO;
-use Shahkar\DataCenter\DTOs\Person\LegalPersonDTO;
-use Shahkar\DataCenter\DTOs\Person\LegalPersonUpdateDTO;
-use Shahkar\DataCenter\DTOs\Person\NaturalPersonDTO;
+use Shahkar\DataCenter\DTOs\Person\LegalPersonV1DTO;
+use Shahkar\DataCenter\DTOs\Person\LegalPersonUpdateV1DTO;
+use Shahkar\DataCenter\DTOs\Person\NaturalPersonV1DTO;
 use Shahkar\DataCenter\Http\Responses\ApiResponse;
 use Shahkar\DataCenter\Support\RequestIdGenerator;
 
-class DataCenterApiService implements DataCenterApiInterface
+class DataCenterApiServiceV1 implements DataCenterApiV1Interface
 {
     private const ENDPOINT_PUT    = 'rest/shahkar/datacenter/put';
     private const ENDPOINT_UPDATE = 'rest/shahkar/datacenter/update';
@@ -31,7 +31,7 @@ class DataCenterApiService implements DataCenterApiInterface
      *   2nd call: with otp populated in $person → API finalizes registration
      */
     public function registerForNaturalPerson(
-        NaturalPersonDTO     $person,
+        NaturalPersonV1DTO     $person,
         AddressDTO           $address,
         ServiceDataInterface $service,
         ?string              $requestId = null
@@ -53,7 +53,7 @@ class DataCenterApiService implements DataCenterApiInterface
      *   2nd call: with both otp and agentOtp populated in $person
      */
     public function registerForLegalPerson(
-        LegalPersonDTO       $person,
+        LegalPersonV1DTO       $person,
         AddressDTO           $address,
         ServiceDataInterface $service,
         ?string              $requestId = null
@@ -101,7 +101,7 @@ class DataCenterApiService implements DataCenterApiInterface
         int                   $agentOtp,
         ServiceDataInterface  $serviceUpdate,
         ?AddressUpdateDTO     $addressUpdate = null,
-        ?LegalPersonUpdateDTO $customerUpdate = null,
+        ?LegalPersonUpdateV1DTO $customerUpdate = null,
         ?string               $requestId = null
     ): ApiResponse {
         $payload = array_filter([

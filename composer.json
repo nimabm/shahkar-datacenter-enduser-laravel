@@ -35,7 +35,8 @@
                 "Shahkar\\DataCenter\\ShahkarDataCenterServiceProvider"
             ],
             "aliases": {
-                "ShahkarDataCenter": "Shahkar\\DataCenter\\Facades\\ShahkarDataCenter"
+                "ShahkarDataCenter": "Shahkar\\DataCenter\\Facades\\ShahkarDataCenter",
+                "ShahkarIp": "Shahkar\\DataCenter\\Facades\\ShahkarIp"
             }
         }
     },

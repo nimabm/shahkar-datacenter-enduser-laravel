@@ -7,23 +7,23 @@ use PHPUnit\Framework\MockObject\MockObject;
 use Shahkar\DataCenter\Contracts\HttpClientInterface;
 use Shahkar\DataCenter\DTOs\Address\AddressDTO;
 use Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO;
-use Shahkar\DataCenter\DTOs\Person\LegalPersonDTO;
-use Shahkar\DataCenter\DTOs\Person\NaturalPersonDTO;
+use Shahkar\DataCenter\DTOs\Person\LegalPersonV1DTO;
+use Shahkar\DataCenter\DTOs\Person\NaturalPersonV1DTO;
 use Shahkar\DataCenter\DTOs\Service\SharedWebHostingServiceDTO;
 use Shahkar\DataCenter\DTOs\Service\SharedWebHostingUpdateDTO;
 use Shahkar\DataCenter\Http\Responses\ApiResponse;
-use Shahkar\DataCenter\Services\DataCenterApiService;
+use Shahkar\DataCenter\Services\DataCenterApiServiceV1;
 
-class DataCenterApiServiceTest extends TestCase
+class DataCenterApiServiceV1Test extends TestCase
 {
     private HttpClientInterface&MockObject $httpClient;
-    private DataCenterApiService $service;
+    private DataCenterApiServiceV1 $service;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->httpClient = $this->createMock(HttpClientInterface::class);
-        $this->service    = new DataCenterApiService($this->httpClient, '013');
+        $this->service    = new DataCenterApiServiceV1($this->httpClient, '013');
     }
 
     private function makeSuccessResponse(array $extra = []): ApiResponse
@@ -54,7 +54,7 @@ class DataCenterApiServiceTest extends TestCase
             ->willReturn($this->makeSuccessResponse());
 
         $response = $this->service->registerForNaturalPerson(
-            person:  new NaturalPersonDTO('0987654321'),
+            person:  new NaturalPersonV1DTO('0987654321'),
             address: new AddressDTO('021', 'Azadi Street', '10', '1234567890'),
             service: new SharedWebHostingServiceDTO('DC001', '1.2.3.4-1.2.3.4', 256, '14030101', 'cra.ir'),
         );
@@ -79,7 +79,7 @@ class DataCenterApiServiceTest extends TestCase
             ->willReturn($this->makeSuccessResponse());
 
         $this->service->registerForLegalPerson(
-            person:  new LegalPersonDTO('33273340437', '09128964532', '0072314567'),
+            person:  new LegalPersonV1DTO('33273340437', '09128964532', '0072314567'),
             address: new AddressDTO('021', 'Azadi Street', '10', '1234567890'),
             service: new SharedWebHostingServiceDTO('DC001', '1.2.3.4-1.2.3.4', 256, '14030101', 'cra.ir'),
         );
