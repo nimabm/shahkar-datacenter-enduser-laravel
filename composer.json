@@ -37,7 +37,8 @@
             "aliases": {
                 "ShahkarDataCenter": "Shahkar\\DataCenter\\Facades\\ShahkarDataCenter",
                 "ShahkarIp": "Shahkar\\DataCenter\\Facades\\ShahkarIp",
-                "ShahkarInquiry": "Shahkar\\DataCenter\\Facades\\ShahkarInquiry"
+                "ShahkarInquiry": "Shahkar\\DataCenter\\Facades\\ShahkarInquiry",
+                "ShahkarReseller": "Shahkar\\DataCenter\\Facades\\ShahkarReseller"
             }
         }
     },
