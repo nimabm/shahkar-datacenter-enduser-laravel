@@ -3,21 +3,29 @@
 namespace Shahkar\DataCenter\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use Shahkar\DataCenter\Contracts\DataCenterApiInterface;
+use Shahkar\DataCenter\Support\ShahkarDataCenterManager;
 
 /**
- * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse registerForNaturalPerson(\Shahkar\DataCenter\DTOs\Person\NaturalPersonDTO $person, \Shahkar\DataCenter\DTOs\Address\AddressDTO $address, \Shahkar\DataCenter\Contracts\ServiceDataInterface $service, ?string $requestId = null)
- * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse registerForLegalPerson(\Shahkar\DataCenter\DTOs\Person\LegalPersonDTO $person, \Shahkar\DataCenter\DTOs\Address\AddressDTO $address, \Shahkar\DataCenter\Contracts\ServiceDataInterface $service, ?string $requestId = null)
- * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse updateForNaturalPerson(string $serviceId, string $serviceNumber, int $otp, \Shahkar\DataCenter\Contracts\ServiceDataInterface $serviceUpdate, ?\Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO $addressUpdate = null, ?string $requestId = null)
- * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse updateForLegalPerson(string $serviceId, string $serviceNumber, int $otp, int $agentOtp, \Shahkar\DataCenter\Contracts\ServiceDataInterface $serviceUpdate, ?\Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO $addressUpdate = null, ?\Shahkar\DataCenter\DTOs\Person\LegalPersonUpdateDTO $customerUpdate = null, ?string $requestId = null)
- * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse close(string $serviceId, ?string $requestId = null)
+ * Version selection:
+ * @method static \Shahkar\DataCenter\Contracts\DataCenterApiInterface|\Shahkar\DataCenter\Contracts\DataCenterApiV92Interface version(\Shahkar\DataCenter\Enums\ApiVersion|string $version)
+ * @method static \Shahkar\DataCenter\Contracts\DataCenterApiInterface|\Shahkar\DataCenter\Contracts\DataCenterApiV92Interface default()
  *
- * @see \Shahkar\DataCenter\Services\DataCenterApiService
+ * Default version (configured via shahkar-datacenter.default_version) methods are
+ * forwarded directly. With the default set to '9.2' these resolve to the V9.2 flow:
+ * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse registerForNaturalPerson(\Shahkar\DataCenter\DTOs\Person\NaturalPersonV92DTO $person, \Shahkar\DataCenter\DTOs\Address\AddressDTO $address, \Shahkar\DataCenter\Contracts\ServiceDataInterface $service, ?string $requestId = null)
+ * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse registerForLegalPerson(\Shahkar\DataCenter\DTOs\Person\LegalPersonV92DTO $person, \Shahkar\DataCenter\DTOs\Address\AddressDTO $address, \Shahkar\DataCenter\Contracts\ServiceDataInterface $service, ?string $requestId = null)
+ * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse update(string $serviceId, string $serviceNumber, \Shahkar\DataCenter\Contracts\ServiceDataInterface $serviceUpdate, ?\Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO $addressUpdate = null, ?\Shahkar\DataCenter\DTOs\Person\CustomerUpdateV92DTO $customerUpdate = null, ?string $requestId = null)
+ * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse close(string $serviceId, string $serviceNumber, ?string $requestId = null)
+ * @method static \Shahkar\DataCenter\Http\Responses\ApiResponse delete(string $serviceId, string $serviceNumber, ?string $requestId = null)
+ *
+ * To use the new web service v1.0 (OTP) flow explicitly, go through version('1.0'):
+ * @see \Shahkar\DataCenter\Contracts\DataCenterApiInterface
+ * @see \Shahkar\DataCenter\Support\ShahkarDataCenterManager
  */
 class ShahkarDataCenter extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return DataCenterApiInterface::class;
+        return ShahkarDataCenterManager::class;
     }
 }

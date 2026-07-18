@@ -21,6 +21,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Reseller Code
+    |--------------------------------------------------------------------------
+    | Sent as "resellerCode" on every V9.2 request. Not used by the current
+    | (OTP) flow. Leave empty if you only use the current flow.
+    */
+    'reseller_code' => env('SHAHKAR_RESELLER_CODE', ''),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default API Version
+    |--------------------------------------------------------------------------
+    | Which document version handles calls made without ShahkarDataCenter::
+    | version(...). Each version maps to its own API document, keyed by the
+    | version number printed on that document:
+    |
+    |   '9.2'    => Shahkar DC EndUser V9.2 (single-step, no OTP)
+    |   '1.0'    => new web service v1.0 (two-step OTP flow)
+    |
+    | See Shahkar\DataCenter\Enums\ApiVersion for the registered versions.
+    */
+    'default_version' => env('SHAHKAR_API_VERSION', '9.2'),
+
+    /*
+    |--------------------------------------------------------------------------
     | HTTP Client Options
     |--------------------------------------------------------------------------
     */
