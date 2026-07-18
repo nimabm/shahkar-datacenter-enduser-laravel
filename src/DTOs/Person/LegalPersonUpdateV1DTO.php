@@ -4,7 +4,7 @@ namespace Shahkar\DataCenter\DTOs\Person;
 
 use Shahkar\DataCenter\Enums\IdentificationType;
 
-class LegalPersonUpdateDTO
+class LegalPersonUpdateV1DTO
 {
     public function __construct(
         public readonly string $agentIdentificationNo,

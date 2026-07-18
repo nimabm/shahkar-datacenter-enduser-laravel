@@ -4,22 +4,22 @@ namespace Shahkar\DataCenter\Contracts;
 
 use Shahkar\DataCenter\DTOs\Address\AddressDTO;
 use Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO;
-use Shahkar\DataCenter\DTOs\Person\LegalPersonDTO;
-use Shahkar\DataCenter\DTOs\Person\LegalPersonUpdateDTO;
-use Shahkar\DataCenter\DTOs\Person\NaturalPersonDTO;
+use Shahkar\DataCenter\DTOs\Person\LegalPersonV1DTO;
+use Shahkar\DataCenter\DTOs\Person\LegalPersonUpdateV1DTO;
+use Shahkar\DataCenter\DTOs\Person\NaturalPersonV1DTO;
 use Shahkar\DataCenter\Http\Responses\ApiResponse;
 
-interface DataCenterApiInterface
+interface DataCenterApiV1Interface
 {
     public function registerForNaturalPerson(
-        NaturalPersonDTO   $person,
+        NaturalPersonV1DTO   $person,
         AddressDTO         $address,
         ServiceDataInterface $service,
         ?string            $requestId
     ): ApiResponse;
 
     public function registerForLegalPerson(
-        LegalPersonDTO     $person,
+        LegalPersonV1DTO     $person,
         AddressDTO         $address,
         ServiceDataInterface $service,
         ?string            $requestId
@@ -41,7 +41,7 @@ interface DataCenterApiInterface
         int                 $agentOtp,
         ServiceDataInterface $serviceUpdate,
         ?AddressUpdateDTO   $addressUpdate,
-        ?LegalPersonUpdateDTO $customerUpdate,
+        ?LegalPersonUpdateV1DTO $customerUpdate,
         ?string             $requestId
     ): ApiResponse;
 
