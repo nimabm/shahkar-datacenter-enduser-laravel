@@ -7,9 +7,11 @@ use Shahkar\DataCenter\Contracts\DataCenterApiV1Interface;
 use Shahkar\DataCenter\Contracts\DataCenterApiV92Interface;
 use Shahkar\DataCenter\Contracts\HttpClientInterface;
 use Shahkar\DataCenter\Contracts\IpRegistrationApiInterface;
+use Shahkar\DataCenter\Contracts\InquiryApiInterface;
 use Shahkar\DataCenter\Http\ShahkarHttpClient;
 use Shahkar\DataCenter\Services\DataCenterApiServiceV1;
 use Shahkar\DataCenter\Services\DataCenterApiServiceV92;
+use Shahkar\DataCenter\Services\InquiryApiService;
 use Shahkar\DataCenter\Services\IpRegistrationApiService;
 use Shahkar\DataCenter\Support\ShahkarDataCenterManager;
 
@@ -54,6 +56,14 @@ class ShahkarDataCenterServiceProvider extends ServiceProvider
         // Data Center versions above; shares only the HTTP client.
         $this->app->singleton(IpRegistrationApiInterface::class, function ($app) {
             return new IpRegistrationApiService(
+                $app->make(HttpClientInterface::class),
+                config('shahkar-datacenter.operator_id', '013'),
+            );
+        });
+
+        // Standalone "Estelaam" identity-inquiry service — also independent.
+        $this->app->singleton(InquiryApiInterface::class, function ($app) {
+            return new InquiryApiService(
                 $app->make(HttpClientInterface::class),
                 config('shahkar-datacenter.operator_id', '013'),
             );

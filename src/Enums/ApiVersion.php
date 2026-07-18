@@ -32,7 +32,7 @@ enum ApiVersion: string
     public function docReference(): string
     {
         return match ($this) {
-            self::V1_0 => 'New web service v1.0 — two-step OTP (see DOCUMENTATION.md)',
+            self::V1_0 => 'New web service v1.0 — two-step OTP (see README.md)',
             self::V9_2 => 'Shahkar DC EndUser V9.2 — single-step, no OTP',
         };
     }
