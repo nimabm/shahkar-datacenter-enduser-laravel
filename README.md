@@ -10,6 +10,9 @@ The package covers two things:
 - The standalone [**IP Registration** (`putIP`) service](#ip-registration-service-putip--shahkarip) — a separate
   Shahkar service for declaring the IP ranges an operator advertises. Accessed via its own
   `ShahkarIp` facade; not part of the Data Center flow.
+- The standalone [**Estelaam** identity-inquiry service](#estelaam-identity-inquiry-service--shahkarinquiry) —
+  verifies a person's identity (and postal code) against Shahkar's registry. Accessed via its
+  own `ShahkarInquiry` facade; not part of the Data Center flow.
 
 Jump straight to what you need; the sections are self-contained.
 
@@ -515,6 +518,127 @@ $response = ShahkarIp::truncate();
 
 ---
 
+# Estelaam identity-inquiry service — `ShahkarInquiry`
+
+Another **separate** Shahkar service (document **v1.4**), independent of the Data Center web
+service. It verifies a person's identity — and optionally their postal address — against
+Shahkar's reference registry. One endpoint (`rest/shahkar/estelaam`) serves all person types;
+there is no OTP. It has its own facade, `ShahkarInquiry`, and shares only the connection
+config (`base_url`, credentials, `operator_id`).
+
+> **Reading the result:** the outcome is in the **response body**, not the HTTP status. On a
+> reachable request you get HTTP 200 either way; check `response`/`result`:
+> `response == 200` / `"OK."` when verified, `610` / `"CustomerNotFoundException"` when not.
+> Use `$response->get('response')`, **not** `$response->success`.
+
+Address is optional. If you send any address field, Shahkar requires the rest of the address
+block too (`postalCode`, `provinceCode`, `townshipName`, `address`, `street2`, `houseNumber`;
+`tel` optional). The shared `AddressDTO` produces exactly that shape.
+
+### Verify a natural person
+
+```php
+use Shahkar\DataCenter\Facades\ShahkarInquiry;
+use Shahkar\DataCenter\DTOs\Inquiry\NaturalPersonInquiryDTO;
+use Shahkar\DataCenter\DTOs\Address\AddressDTO;
+use Shahkar\DataCenter\Enums\InquiryIdentificationType;
+
+// ---- Iranian (identificationType defaults to NationalCode = 0) ----
+$response = ShahkarInquiry::verifyNaturalPerson(
+    person: new NaturalPersonInquiryDTO(
+        identificationNo: '0987654321',
+        name:             'علی',
+        family:           'صارمی',
+        birthDate:        '13541101',   // Jalali for Iranian
+        fatherName:       'یوسف',
+        certificateNo:    '10984',      // send "0" if the person has none
+        gender:           1,            // optional: 1 = male, 2 = female
+    ),
+    address: new AddressDTO(            // optional
+        provinceCode: '021',
+        address:      'خیابان مطهری، کوچه شهید تیموری، پلاک 272، طبقه ۵، واحد 10',
+        houseNumber:  '272',
+        postalCode:   '1576653133',
+        townshipName: 'تهران',
+        street2:      'شهید تیموری',
+        tel:          '02122334455',
+    ),
+    serviceType: 39,                    // optional service block
+);
+
+if ($response->get('response') === 200) {
+    // identity verified
+} elseif ($response->get('result') === 'CustomerNotFoundException') {
+    // not found in the reference registry
+}
+```
+
+**Foreign natural person:** choose the document type (`Passport`, `AmayeshCard`, `RefugeeCard`
+or `IdentityCard`), send a Gregorian `birthDate` and `nationality`; `universalNo` is optional:
+
+```php
+ShahkarInquiry::verifyNaturalPerson(
+    new NaturalPersonInquiryDTO(
+        identificationNo:   'P45887457',
+        name:               'JOHN',
+        family:             'HOPKINS',
+        birthDate:          '19830813',                       // Gregorian
+        identificationType: InquiryIdentificationType::Passport,
+        fatherName:         'GEORGE',
+        nationality:        'USA',
+        universalNo:        '154263652',                      // optional
+    ),
+);
+```
+
+### Verify a legal person
+
+No agent data is required (unlike the Data Center flow).
+
+```php
+use Shahkar\DataCenter\DTOs\Inquiry\LegalPersonInquiryDTO;
+use Shahkar\DataCenter\Enums\InquiryIdentificationType;
+
+// ---- Iranian company (identificationType defaults to NationalId = 5) ----
+ShahkarInquiry::verifyLegalPerson(
+    new LegalPersonInquiryDTO(
+        identificationNo: '56235625365263',
+        companyName:      'آریا مهر تجارت نوین',
+        companyType:      1,
+        registrationDate: '13940424',
+        registrationNo:   '475771',
+    ),
+);
+
+// ---- Foreign company: identificationType = FidaId (6) ----
+ShahkarInquiry::verifyLegalPerson(
+    new LegalPersonInquiryDTO(
+        identificationNo:   '56235625365263',
+        companyName:        'Benz',
+        companyType:        1,
+        registrationDate:   '13940424',
+        registrationNo:     '475771',
+        identificationType: InquiryIdentificationType::FidaId,
+    ),
+);
+```
+
+### Identity document types
+
+`InquiryIdentificationType` covers every type this service accepts:
+
+| Case           | Value | Applies to             |
+|----------------|-------|------------------------|
+| `NationalCode` | 0     | natural, Iranian       |
+| `Passport`     | 1     | natural, foreign       |
+| `AmayeshCard`  | 2     | natural, foreign       |
+| `RefugeeCard`  | 3     | natural, foreign       |
+| `IdentityCard` | 4     | natural, foreign       |
+| `NationalId`   | 5     | legal, Iranian         |
+| `FidaId`       | 6     | legal, foreign         |
+
+---
+
 ## Service DTOs (shared)
 
 The **person** DTOs differ per version, but the **address** and **service** DTOs are the
@@ -759,12 +883,16 @@ src/
 │   ├── DataCenterApiV1Interface.php      # v1.0 OTP flow ('1.0')
 │   ├── DataCenterApiV92Interface.php   # v9.2 flow ('9.2')
 │   ├── IpRegistrationApiInterface.php  # standalone putIP service (v1.5)
+│   ├── InquiryApiInterface.php         # standalone estelaam service (v1.4)
 │   ├── HttpClientInterface.php
 │   └── ServiceDataInterface.php
 ├── DTOs/                   # Data Transfer Objects (type-safe)
 │   ├── Address/
 │   │   ├── AddressDTO.php               (shared)
 │   │   └── AddressUpdateDTO.php         (shared)
+│   ├── Inquiry/                         # estelaam service
+│   │   ├── NaturalPersonInquiryDTO.php
+│   │   └── LegalPersonInquiryDTO.php
 │   ├── Person/
 │   │   ├── NaturalPersonV1DTO.php         (natural person — v1.0 OTP)
 │   │   ├── LegalPersonV1DTO.php           (legal person — v1.0 OTP)
@@ -785,6 +913,7 @@ src/
 │   ├── ApiVersion.php          # registered document versions
 │   ├── DataCenterType.php
 │   ├── IdentificationType.php
+│   ├── InquiryIdentificationType.php   # estelaam service
 │   └── ServiceType.php
 ├── Exceptions/
 │   ├── ShahkarApiException.php
@@ -796,14 +925,16 @@ src/
 ├── Services/
 │   ├── DataCenterApiServiceV1.php        # v1.0 OTP flow ('1.0')
 │   ├── DataCenterApiServiceV92.php     # v9.2 flow ('9.2')
-│   └── IpRegistrationApiService.php    # standalone putIP service (v1.5)
+│   ├── IpRegistrationApiService.php    # standalone putIP service (v1.5)
+│   └── InquiryApiService.php           # standalone estelaam service (v1.4)
 ├── Support/
 │   ├── ShahkarDataCenterManager.php    # resolves the version to use
 │   ├── RequestIdGenerator.php
 │   └── IpRangeHelper.php
 └── Facades/
     ├── ShahkarDataCenter.php
-    └── ShahkarIp.php                   # facade for the putIP service
+    ├── ShahkarIp.php                   # facade for the putIP service
+    └── ShahkarInquiry.php              # facade for the estelaam service
 ```
 
 ---
