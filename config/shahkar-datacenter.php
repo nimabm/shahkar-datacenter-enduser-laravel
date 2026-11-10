@@ -24,8 +24,9 @@ return [
     | Reseller Code
     |--------------------------------------------------------------------------
     | The operator's own reseller code, sent as the top-level "resellerCode" on
-    | Data Center v9.2 and Reseller Code service requests. Not used by the v1.0
-    | (OTP) flow. Optional — leave empty if you don't use those services.
+    | Data Center v9.4 / v9.2 and Reseller Code service requests. Not used by
+    | the v1.2 / v1.0 (OTP) flows. Optional — leave empty if you don't use
+    | those services.
     */
     'reseller_code' => env('SHAHKAR_RESELLER_CODE', ''),
 
@@ -34,16 +35,18 @@ return [
     | Default API Version
     |--------------------------------------------------------------------------
     | The version returned by ShahkarDataCenter::default(). Prefer the typed
-    | accessors v92()/v1() in code; this is only the fallback for callers that
-    | resolve the version dynamically. Each version maps to its own API document,
-    | keyed by the version number printed on that document:
+    | accessors v94()/v12()/v92()/v1() in code; this is only the fallback for
+    | callers that resolve the version dynamically. Each version maps to its own
+    | API document, keyed by the version number printed on that document:
     |
-    |   '9.2'    => Shahkar DC EndUser V9.2 (single-step, no OTP)
-    |   '1.0'    => new web service v1.0 (two-step OTP flow)
+    |   '9.4'    => Shahkar DC EndUser V9.4 (single-step, no OTP, publicIps/privateIps)
+    |   '1.2'    => Shahkar DC EndUser V1.2 (two-step OTP, publicIps/privateIps)
+    |   '9.2'    => Shahkar DC EndUser V9.2 (single-step, no OTP, ips)
+    |   '1.0'    => Shahkar DC EndUser new auth V1.0 (two-step OTP, ips)
     |
     | See Shahkar\DataCenter\Enums\ApiVersion for the registered versions.
     */
-    'default_version' => env('SHAHKAR_API_VERSION', '9.2'),
+    'default_version' => env('SHAHKAR_API_VERSION', '9.4'),
 
     /*
     |--------------------------------------------------------------------------

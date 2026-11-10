@@ -4,9 +4,11 @@ Complete guide for using the Laravel package for the Shahkar "End-User Data Cent
 
 The package covers two things:
 
-- The **Data Center** web service, in two API versions:
-  - [**Version 9.2**](#version-92--single-request-no-otp) — single request, **no OTP**.
-  - [**Version 1.0**](#version-10--two-step-otp) — the new web service, **two-step OTP**.
+- The **Data Center** web service, in four API versions:
+  - [**Version 9.4**](#version-94--single-request-no-otp-publicips--privateips) — single request, **no OTP**, `publicIps` / `privateIps`. **(default)**
+  - [**Version 1.2**](#version-12--two-step-otp-publicips--privateips) — new authentication, **two-step OTP**, `publicIps` / `privateIps`.
+  - [**Version 9.2**](#version-92--single-request-no-otp) — single request, **no OTP**, single `ips` field (superseded by 9.4).
+  - [**Version 1.0**](#version-10--two-step-otp) — new authentication, **two-step OTP**, single `ips` field (superseded by 1.2).
 - The standalone [**IP Registration** (`putIP`) service](#ip-registration-service-putip--shahkarip) — a separate
   Shahkar service for declaring the IP ranges an operator advertises. Accessed via its own
   `ShahkarIp` facade; not part of the Data Center flow.
@@ -50,8 +52,8 @@ SHAHKAR_TIMEOUT=30
 SHAHKAR_VERIFY_SSL=true
 
 # Version selection (see "API Versions" below)
-SHAHKAR_API_VERSION=9.2
-SHAHKAR_RESELLER_CODE=526   # required by v9.2 only
+SHAHKAR_API_VERSION=9.4
+SHAHKAR_RESELLER_CODE=526   # required by v9.4 / v9.2 only
 ```
 
 ---
@@ -62,37 +64,64 @@ The Shahkar "End-User Data Center" service exists in more than one revision, and
 request flows differ. This package ships one implementation per version, keyed by the
 version number printed on that version's own document:
 
-| Key     | Flow                                   | Person DTOs                                        | Endpoints                    |
-|---------|----------------------------------------|----------------------------------------------------|------------------------------|
-| `'9.2'` | **Single request, no OTP.** Full identity sent inline. | `NaturalPersonV92DTO`, `LegalPersonV92DTO`         | `rest/shahkar/{put,update,delete}` |
-| `'1.0'` | **Two-step OTP.** `identificationNo` + OTP resolve identity. | `NaturalPersonV1DTO`, `LegalPersonV1DTO`               | `rest/shahkar/datacenter/{put,update,close}` |
+| Key     | Accessor | Flow                                   | Person DTOs                                        | Service DTOs | Endpoints                    |
+|---------|----------|----------------------------------------|----------------------------------------------------|--------------|------------------------------|
+| `'9.4'` | `v94()`  | **Single request, no OTP.** Full identity sent inline. | `NaturalPersonV92DTO`, `LegalPersonV92DTO`         | `*V94DTO` (`publicIps` / `privateIps`) | `rest/shahkar/{put,update,delete}` |
+| `'1.2'` | `v12()`  | **Two-step OTP.** `identificationNo` + OTP resolve identity. | `NaturalPersonV1DTO`, `LegalPersonV1DTO`               | `*V12DTO` (`publicIps` / `privateIps`) | `rest/shahkar/datacenter/{put,update,close}` |
+| `'9.2'` | `v92()`  | **Single request, no OTP.** Full identity sent inline. | `NaturalPersonV92DTO`, `LegalPersonV92DTO`         | unsuffixed (`ips`) | `rest/shahkar/{put,update,delete}` |
+| `'1.0'` | `v1()`   | **Two-step OTP.** `identificationNo` + OTP resolve identity. | `NaturalPersonV1DTO`, `LegalPersonV1DTO`               | unsuffixed (`ips`) | `rest/shahkar/datacenter/{put,update,close}` |
+
+9.4 and 1.2 (both revised 21/06/1405) replace the single `ips` field with **`publicIps`**
+(required) and **`privateIps`** (optional). Their person fields didn't change, so they
+reuse the 9.2 and 1.0 person DTOs. See [What changed in 9.4 / 1.2](#what-changed-in-94--12).
 
 ### How you pick a version
 
-**Preferred — typed accessors.** Call `v92()` or `v1()`; each returns the concrete
-contract for that version, so your IDE and static analysis know exactly which methods
-and DTOs apply:
+**Preferred — typed accessors.** Call `v94()`, `v12()`, `v92()` or `v1()`; each returns the
+concrete contract for that version, so your IDE and static analysis know exactly which
+methods and DTOs apply:
 
 ```php
 use Shahkar\DataCenter\Facades\ShahkarDataCenter;
 
-ShahkarDataCenter::v92()->registerForNaturalPerson($personV92, $address, $service); // v9.2
-ShahkarDataCenter::v1()->registerForNaturalPerson($person,    $address, $service);  // v1.0
+ShahkarDataCenter::v94()->registerForNaturalPerson($personV92, $address, $serviceV94); // v9.4
+ShahkarDataCenter::v12()->registerForNaturalPerson($personV1,  $address, $serviceV12); // v1.2
+ShahkarDataCenter::v92()->registerForNaturalPerson($personV92, $address, $service);    // v9.2
+ShahkarDataCenter::v1()->registerForNaturalPerson($personV1,   $address, $service);    // v1.0
 ```
 
 **Dynamic — when the version is decided at runtime** (e.g. read from config), use
-`version(...)` or `default()`. These return a union of both contracts, so reach for them
+`version(...)` or `default()`. These return a union of all contracts, so reach for them
 only when you can't name the version at author time:
 
 ```php
-// config/shahkar-datacenter.php  ->  'default_version' => env('SHAHKAR_API_VERSION', '9.2')
+// config/shahkar-datacenter.php  ->  'default_version' => env('SHAHKAR_API_VERSION', '9.4')
 ShahkarDataCenter::default()->registerForNaturalPerson(...);        // the configured version
-ShahkarDataCenter::version($someVersion)->registerForNaturalPerson(...); // '9.2' | '1.0' | ApiVersion
+ShahkarDataCenter::version($someVersion)->registerForNaturalPerson(...); // '9.4' | '1.2' | '9.2' | '1.0' | ApiVersion
 ```
 
-> ⚠️ **Each version uses different person DTOs and method signatures.** `v92()` needs a
-> `NaturalPersonV92DTO`; `v1()` needs a `NaturalPersonV1DTO`. Never mix them — that's exactly
-> why the typed accessors exist: they stop you from passing the wrong DTO by accident.
+> ⚠️ **Each version uses different DTOs and method signatures.** `v94()` only accepts the
+> `*V94DTO` service classes and `v12()` only the `*V12DTO` ones; passing an older `ips`-based
+> DTO throws a `TypeError`. Never mix them — that's exactly why the typed accessors exist:
+> they stop you from passing the wrong DTO by accident.
+
+### What changed in 9.4 / 1.2
+
+Both documents (9.3 / 1.1 added the IP-registration rules, 9.4 / 1.2 the public/private split):
+
+- **`ips` → `publicIps` + `privateIps`** in every service and service-update payload.
+  - `publicIps` — required on registration. Public IPs only, and each range must sit inside
+    a range the operator registered via [`ShahkarIp::put()`](#ip-registration-service-putip--shahkarip)
+    or received from an assignable data center.
+  - `privateIps` — optional. Private (RFC 1918) IPs only; they do **not** need to be
+    registered via Put IP.
+  - Shahkar rejects ranges that overlap. Only static IPs should be registered.
+- **DedicatedServer / Colocation:** `province` is required on registration (the new DTOs enforce it).
+- **1.2 update only:** the service is identified by `id` alone — no `serviceNumber`, no
+  `dataCenterId` in `serviceUpdate`, and no `customerUpdate` (it no longer appears in the
+  document). The update is also two-step, like registration.
+- **9.4 update** is unchanged apart from the IP fields: `serviceNumber` + `dataCenterId` are
+  still sent.
 
 ### Adding a future version
 
@@ -104,7 +133,242 @@ ShahkarDataCenter::version($someVersion)->registerForNaturalPerson(...); // '9.2
 
 ---
 
+# Version 9.4 — single request, no OTP, `publicIps` / `privateIps`
+
+Everything in this section is reached through `ShahkarDataCenter::v94()`. The flow,
+endpoints and person DTOs are the same as [9.2](#version-92--single-request-no-otp) (see
+there for all person fields, foreign persons and legal persons). The difference is the
+service data: use the `*V94DTO` classes, which send `publicIps` / `privateIps`.
+
+### 9.4 — Register
+
+```php
+use Shahkar\DataCenter\Facades\ShahkarDataCenter;
+use Shahkar\DataCenter\DTOs\Address\AddressDTO;
+use Shahkar\DataCenter\DTOs\Person\LegalPersonV92DTO;
+use Shahkar\DataCenter\DTOs\Person\NaturalPersonV92DTO;
+use Shahkar\DataCenter\DTOs\Service\SharedWebHostingServiceV94DTO;
+
+$person = new NaturalPersonV92DTO(
+    identificationNo: '0987654321',
+    name:             'علی',
+    family:           'صارمی',
+    mobile:           '09127613814',
+    fatherName:       'یوسف',
+    birthDate:        '13541101',
+    birthPlace:       'خمین',
+    certificateNo:    '10984',
+    gender:           1,
+    email:            'sample@smp.com',
+);
+
+$address = new AddressDTO(
+    provinceCode: '021',
+    address:      'خیابان مطهری، کوچه شهید احمدعلی نیری، پلاک 18، طبقه 5، واحد 10',
+    houseNumber:  '18',
+    postalCode:   '1345676543',
+    townshipName: 'اسلامشهر',
+);
+
+$service = new SharedWebHostingServiceV94DTO(
+    dataCenterId: '34689999',
+    publicIps:    '185.168.12.10-185.168.12.10', // required, public only
+    bandwidth:    256,
+    startDate:    '13991211',
+    urlList:      'cra.ir',
+    privateIps:   '192.168.1.1-192.168.1.10',    // optional, private only
+    endDate:      '13991212',
+    hasSSL:       true,
+    hasIXP:       true,
+);
+
+$response = ShahkarDataCenter::v94()->registerForNaturalPerson($person, $address, $service);
+
+// Legal person: same call shape with a LegalPersonV92DTO
+ShahkarDataCenter::v94()->registerForLegalPerson($legal, $address, $service);
+```
+
+> Any service type works — see [Service DTOs — v9.4 / v1.2](#service-dtos--v94--v12-publicips--privateips)
+> for VPS, Dedicated/Colocation and CDN.
+
+### 9.4 — Update a service
+
+One request, no OTP. `dataCenterId` is still required on the update DTO (it identifies the
+service and can't be changed). Send only the other fields you want to change.
+
+```php
+use Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO;
+use Shahkar\DataCenter\DTOs\Person\CustomerUpdateV92DTO;
+use Shahkar\DataCenter\DTOs\Service\SharedWebHostingUpdateV94DTO;
+
+ShahkarDataCenter::v94()->update(
+    serviceId:      'WZOzs3PX2rKTg4q-TH3W3YQI8a3pliprH-DGI9KGIz8',
+    serviceNumber:  '34689658',
+    serviceUpdate:  new SharedWebHostingUpdateV94DTO(
+        dataCenterId: '34689658',
+        publicIps:    '185.168.12.10-185.168.12.10',
+        privateIps:   '192.168.1.1-192.168.1.10',
+        hasIXP:       true,
+    ),
+    addressUpdate:  new AddressUpdateDTO(townshipName: 'فیروزکوه'),     // optional
+    customerUpdate: new CustomerUpdateV92DTO(email: 'moghadam@smp.com'), // optional
+);
+```
+
+### 9.4 — Close / delete a service
+
+Unchanged from 9.2:
+
+```php
+ShahkarDataCenter::v94()->close(serviceId: 'tw_VAEQOp7riqioo6D9Dec-tvHjlKDtebqTt9QgK0GM', serviceNumber: '54123');  // update + "close": 1
+ShahkarDataCenter::v94()->delete(serviceId: 'tw_VAEQOp7riqioo6D9Dec-tvHjlKDtebqTt9QgK0GM', serviceNumber: '85231'); // delete endpoint
+```
+
+---
+
+# Version 1.2 — two-step OTP, `publicIps` / `privateIps`
+
+Everything in this section is reached through `ShahkarDataCenter::v12()`. Registration
+works exactly like [1.0](#version-10--two-step-otp) (same person DTOs, same two steps);
+use the `*V12DTO` service classes, which send `publicIps` / `privateIps`.
+
+> - **Step 1:** send the request **without** OTP(s) → Shahkar sends the code(s).
+> - **Step 2:** repeat the **same** call with the same `requestId`, with the OTP(s) filled in.
+
+> Shahkar currently accepts this service only for **Iranian** natural and legal persons, so
+> leave `nationality` / `agentNationality` empty.
+
+### 1.2 — Register (two steps)
+
+```php
+use Shahkar\DataCenter\Facades\ShahkarDataCenter;
+use Shahkar\DataCenter\DTOs\Person\LegalPersonV1DTO;
+use Shahkar\DataCenter\DTOs\Person\NaturalPersonV1DTO;
+use Shahkar\DataCenter\DTOs\Service\VpsServiceV12DTO;
+
+$service = new VpsServiceV12DTO(
+    dataCenterId:      '34689999',
+    centerName:        'شقایق',
+    dataCenterAddress: 'تهران، خیابان شریعتی، ورودی شماره 17 وزارت ارتباطات',
+    publicIps:         '185.168.12.10-185.168.12.10',
+    bandwidth:         256,
+    startDate:         '13991211',
+    privateIps:        '192.168.1.1-192.168.1.10',
+    endDate:           '13991212',
+    province:          '021',
+    hasIXP:            true,
+);
+
+// $address: an AddressDTO, as in the 9.4 example above
+
+// Step 1 — no otp
+$step1 = ShahkarDataCenter::v12()->registerForNaturalPerson(
+    new NaturalPersonV1DTO(identificationNo: '0987654321'), $address, $service,
+);
+
+// Step 2 — same requestId, with the otp the subscriber received
+$response = ShahkarDataCenter::v12()->registerForNaturalPerson(
+    person:    new NaturalPersonV1DTO(identificationNo: '0987654321', otp: 12341),
+    address:   $address,
+    service:   $service,
+    requestId: $step1->requestId,
+);
+
+```
+
+**Legal person** — two OTPs on step 2 (company SIM + agent's primary SIM):
+
+```php
+$legal = fn (?int $otp = null, ?int $agentOtp = null) => new LegalPersonV1DTO(
+    identificationNo:      '33273340437',
+    mobileNumber:          '09128964532',
+    agentIdentificationNo: '0072314567',
+    otp:                   $otp,
+    agentOtp:              $agentOtp,
+);
+
+$legalStep1 = ShahkarDataCenter::v12()->registerForLegalPerson($legal(), $address, $service);
+
+ShahkarDataCenter::v12()->registerForLegalPerson(
+    person:    $legal(otp: 1234, agentOtp: 56781),
+    address:   $address,
+    service:   $service,
+    requestId: $legalStep1->requestId,
+);
+```
+
+### 1.2 — Update a service (two steps)
+
+The service is identified by its `id` only: there is **no** `serviceNumber` argument, the
+`*UpdateV12DTO` classes have **no** `dataCenterId`, and there is no `customerUpdate`. Like
+registration, send it first without OTPs, then again with the same `requestId` and the codes.
+
+**Natural person:**
+
+```php
+use Shahkar\DataCenter\DTOs\Address\AddressUpdateDTO;
+use Shahkar\DataCenter\DTOs\Service\SharedWebHostingUpdateV12DTO;
+
+$update  = new SharedWebHostingUpdateV12DTO(
+    publicIps:  '185.168.12.10-185.168.12.10',
+    privateIps: '192.168.1.1-192.168.1.10',
+    hasIXP:     true,
+);
+$address = new AddressUpdateDTO(townshipName: 'فیروزکوه', postalCode: '7654316543'); // optional
+
+// Step 1 — no otp
+$step1 = ShahkarDataCenter::v12()->updateForNaturalPerson(
+    serviceId:     'WZOzs3PX2rKTg4q-TH3W3YQI8a3pliprH-DGI9KGIz8',
+    serviceUpdate: $update,
+    addressUpdate: $address,
+);
+
+// Step 2 — with the otp
+ShahkarDataCenter::v12()->updateForNaturalPerson(
+    serviceId:     'WZOzs3PX2rKTg4q-TH3W3YQI8a3pliprH-DGI9KGIz8',
+    serviceUpdate: $update,
+    addressUpdate: $address,
+    otp:           12341,
+    requestId:     $step1->requestId,
+);
+```
+
+**Legal person** — same, with `otp` and `agentOtp` on step 2:
+
+```php
+use Shahkar\DataCenter\DTOs\Service\VpsUpdateV12DTO;
+
+$serviceId = 'WZOzs3PX2rKTg4q-TH3W3YQI8a3pliprH-DGI9KGIz8';
+$update    = new VpsUpdateV12DTO(bandwidth: 512, publicIps: '185.168.12.10-185.168.12.10');
+
+$legalStep1 = ShahkarDataCenter::v12()->updateForLegalPerson($serviceId, $update);
+
+ShahkarDataCenter::v12()->updateForLegalPerson(
+    serviceId:     $serviceId,
+    serviceUpdate: $update,
+    otp:           1234,
+    agentOtp:      56781,
+    requestId:     $legalStep1->requestId,
+);
+```
+
+If only the address changes, pass an empty update DTO (e.g. `new VpsUpdateV12DTO()`); the
+empty `serviceUpdate` is left out of the request.
+
+### 1.2 — Close a service
+
+Unchanged from 1.0:
+
+```php
+ShahkarDataCenter::v12()->close(serviceId: 'tw_VAEQOp7riqioo6D9Dec-tvHjlKDtebqTt9QgK0GM');
+```
+
+---
+
 # Version 9.2 — single request, no OTP
+
+> Superseded by [9.4](#version-94--single-request-no-otp-publicips--privateips), which splits
+> `ips` into `publicIps` / `privateIps`. Kept for callers still pinned to the 9.2 document.
 
 Everything in this section is reached through `ShahkarDataCenter::v92()`. Registration,
 update, close and delete each complete in **one** request — there is no OTP step. The
@@ -287,6 +551,10 @@ ShahkarDataCenter::v92()->delete(
 ---
 
 # Version 1.0 — two-step OTP
+
+> Superseded by [1.2](#version-12--two-step-otp-publicips--privateips), which splits `ips`
+> into `publicIps` / `privateIps` and identifies the service on update by `id` only. Kept
+> for callers still pinned to the 1.0 document.
 
 Everything in this section is reached through `ShahkarDataCenter::v1()`. Registration and
 update are a **two-step** process:
@@ -769,11 +1037,77 @@ ShahkarReseller::delete(serviceId: 'tw_VAEQOp7ri...', serviceNumber: '9896'); //
 
 ---
 
+## Service DTOs — v9.4 / v1.2 (`publicIps` / `privateIps`)
+
+Use the `V94` classes with `v94()` and the `V12` classes with `v12()`. The registration
+DTOs take the same arguments in both versions; the update DTOs differ only in that the
+V9.4 ones start with a required `dataCenterId` and the V1.2 ones have none.
+
+| Service type             | `dataCenterType` | Register DTO (v9.4 / v1.2)                                             | Update DTO (v9.4 / v1.2)                                             |
+|--------------------------|------------------|------------------------------------------------------------------------|----------------------------------------------------------------------|
+| SharedWebHosting         | 14               | `SharedWebHostingServiceV94DTO` / `SharedWebHostingServiceV12DTO`       | `SharedWebHostingUpdateV94DTO` / `SharedWebHostingUpdateV12DTO`       |
+| VPS                      | 11               | `VpsServiceV94DTO` / `VpsServiceV12DTO`                                 | `VpsUpdateV94DTO` / `VpsUpdateV12DTO`                                 |
+| DedicatedServer / Colocation | 12 / 13      | `DedicatedColocationServiceV94DTO` / `DedicatedColocationServiceV12DTO` | `DedicatedColocationUpdateV94DTO` / `DedicatedColocationUpdateV12DTO` |
+| CDN                      | 15               | `CdnServiceV94DTO` / `CdnServiceV12DTO`                                 | `CdnUpdateV94DTO` / `CdnUpdateV12DTO`                                 |
+
+Each IP field is a comma-joined string of `start-end` ranges (a single IP is `ip-ip`); build
+it with [`IpRangeHelper::format()`](#using-iprangehelper) if you hold an array.
+
+```php
+use Shahkar\DataCenter\DTOs\Service\CdnServiceV94DTO;
+use Shahkar\DataCenter\DTOs\Service\DedicatedColocationServiceV12DTO;
+use Shahkar\DataCenter\DTOs\Service\DedicatedColocationUpdateV94DTO;
+use Shahkar\DataCenter\DTOs\Service\VpsUpdateV12DTO;
+use Shahkar\DataCenter\Enums\DataCenterType;
+
+// SharedWebHosting / VPS: shown in the 9.4 and 1.2 sections above.
+
+$cdn = new CdnServiceV94DTO(
+    dataCenterId: '34689999',
+    publicIps:    '185.168.12.10-185.168.12.10',
+    bandwidth:    256,
+    startDate:    '13991211',
+    urlList:      'cra.ir',
+    privateIps:   '192.168.1.1-192.168.1.10',
+    endDate:      '13991212',
+    hasSSL:       true,
+);
+
+$dedicated = new DedicatedColocationServiceV12DTO(
+    dataCenterId:      '34689999',
+    centerName:        'Shaghayegh',
+    dataCenterAddress: 'Tehran, Shariati St., Entrance No. 17, Ministry of Communications',
+    province:          '021',                         // required for this type
+    publicIps:         '185.168.12.10-185.168.12.10',
+    bandwidth:         256,
+    startDate:         '13991211',
+    lat:               '35.689198',
+    lon:               '51.388973',
+    rowIndex:          1,
+    racIndex:          1,
+    unitIndex:         1,
+    dataCenterType:    DataCenterType::DedicatedServer, // or DataCenterType::Colocation
+    privateIps:        '192.168.1.1-192.168.1.10',
+    endDate:           '13991212',
+    hasIXP:            true,
+    units:             4,
+);
+
+// v9.4 update: dataCenterId first
+$dedicatedUpdate94 = new DedicatedColocationUpdateV94DTO('34689999', rowIndex: 10, racIndex: 3, unitIndex: 12);
+
+// v1.2 update: no dataCenterId
+$vpsUpdate12 = new VpsUpdateV12DTO(bandwidth: 512, privateIps: '192.168.1.1-192.168.1.10');
+```
+
+---
+
 ## Service DTOs (shared)
 
-The **person** DTOs differ per version, but the **address** and **service** DTOs are the
-same for both `v92()` and `v1()`. Build the `$service` you need and pass it to that
-version's `register...` call, or the `...UpdateDTO` to its `update...` call.
+These are the **`ips`-based** service DTOs used by the older **v9.2** and **v1.0** flows
+(`v94()` / `v12()` reject them). They are the same for both `v92()` and `v1()`. Build the
+`$service` you need and pass it to that version's `register...` call, or the `...UpdateDTO`
+to its `update...` call.
 
 ### SharedWebHosting
 
@@ -918,7 +1252,7 @@ use Shahkar\DataCenter\Exceptions\ShahkarApiException;
 use Shahkar\DataCenter\Exceptions\ShahkarValidationException;
 
 try {
-    $response = ShahkarDataCenter::v92()->registerForNaturalPerson(/* ... */);
+    $response = ShahkarDataCenter::v94()->registerForNaturalPerson(/* ... */);
 } catch (ShahkarValidationException $e) {
     // HTTP 422 - invalid data
     logger()->warning('Validation failed', $e->getResponseBody() ?? []);
@@ -943,25 +1277,26 @@ explicitly in your own flow.
 Inject the contract for the version you need, or the manager to pick at runtime:
 
 ```php
-use Shahkar\DataCenter\Contracts\DataCenterApiV92Interface;   // v9.2
-use Shahkar\DataCenter\Contracts\DataCenterApiV1Interface;      // v1.0
-use Shahkar\DataCenter\Support\ShahkarDataCenterManager;      // either, chosen at runtime
+use Shahkar\DataCenter\Contracts\DataCenterApiV94Interface;   // v9.4
+use Shahkar\DataCenter\Contracts\DataCenterApiV12Interface;   // v1.2
+use Shahkar\DataCenter\Support\ShahkarDataCenterManager;    // any version, chosen at runtime
+// (v9.2 / v1.0: DataCenterApiV92Interface / DataCenterApiV1Interface)
 
 class RegistersDataCenters
 {
     public function __construct(
-        private readonly DataCenterApiV92Interface $v92,
-        private readonly DataCenterApiV1Interface    $v1,      // the v1.0 OTP flow
+        private readonly DataCenterApiV94Interface $v94,
+        private readonly DataCenterApiV12Interface $v12,     // the v1.2 OTP flow
         private readonly ShahkarDataCenterManager  $shahkar,
     ) {}
 
     public function example(): void
     {
-        // Directly against v9.2
-        $this->v92->registerForNaturalPerson(/* NaturalPersonV92DTO */, $address, $service);
+        // Directly against v9.4
+        $this->v94->registerForNaturalPerson(/* NaturalPersonV92DTO */, $address, $serviceV94);
 
         // Or resolve a version dynamically
-        $this->shahkar->v1()->registerForNaturalPerson(/* NaturalPersonV1DTO */, $address, $service);
+        $this->shahkar->v12()->registerForNaturalPerson(/* NaturalPersonV1DTO */, $address, $serviceV12);
     }
 }
 ```
@@ -973,10 +1308,10 @@ class RegistersDataCenters
 Mock the contract for whichever version your code uses:
 
 ```php
-use Shahkar\DataCenter\Contracts\DataCenterApiV92Interface;
+use Shahkar\DataCenter\Contracts\DataCenterApiV94Interface;
 use Shahkar\DataCenter\Http\Responses\ApiResponse;
 
-$this->mock(DataCenterApiV92Interface::class, function ($mock) {
+$this->mock(DataCenterApiV94Interface::class, function ($mock) {
     $mock->shouldReceive('registerForNaturalPerson')
          ->once()
          ->andReturn(new ApiResponse(
@@ -988,7 +1323,7 @@ $this->mock(DataCenterApiV92Interface::class, function ($mock) {
 });
 ```
 
-For the v1.0 flow, mock `DataCenterApiV1Interface` instead.
+For the other versions, mock `DataCenterApiV12Interface`, `DataCenterApiV92Interface` or `DataCenterApiV1Interface` instead.
 
 ---
 
@@ -996,14 +1331,19 @@ For the v1.0 flow, mock `DataCenterApiV1Interface` instead.
 
 Applies to the **Data Center** service unless noted otherwise:
 
-- All IPs must be **public** and previously registered in Shahkar.
+- **v9.4 / v1.2:** `publicIps` (required) may hold only public IPs, each range inside one the
+  operator registered via Put IP (`ShahkarIp::put()`) or received from an assignable data
+  center. `privateIps` (optional) may hold only private IPs, which need no Put IP registration.
+  Register static IPs only; overlapping ranges are rejected.
+- **v9.2 / v1.0:** all IPs in `ips` must be **public** and previously registered in Shahkar.
+- **v1.2 / v1.0:** currently only **Iranian** natural and legal persons can be registered.
 - For **natural** persons: an active primary SIM registered in their own name is mandatory.
 - For **legal** persons: both a SIM registered to the legal person and the agent's primary SIM are required.
 - The Data Center service cannot be registered for people **under 18 years old**.
 - Data Center service **transfer** is not supported (the **Reseller Code** service *does* support transfer — see its section).
 - Dates must be **Jalali (Solar Hijri)** in `YYYYMMDD` format (e.g. `14030101`).
 - The province must be sent as its **numeric code** (e.g. `021` for Tehran, not the province name).
-- **Data Center v9.2 & the Reseller Code service:** the operator's `resellerCode` (config `reseller_code`) is sent on every request; the v1.0 OTP flow does not use it.
+- **Data Center v9.4 / v9.2 & the Reseller Code service:** the operator's `resellerCode` (config `reseller_code`) is sent on every request; the v1.2 / v1.0 OTP flows do not use it.
 
 ---
 
@@ -1012,13 +1352,17 @@ Applies to the **Data Center** service unless noted otherwise:
 ```
 src/
 ├── Contracts/              # Interfaces (Dependency Inversion principle)
-│   ├── DataCenterApiV1Interface.php      # v1.0 OTP flow ('1.0')
+│   ├── DataCenterApiV94Interface.php   # v9.4 flow ('9.4')
+│   ├── DataCenterApiV12Interface.php   # v1.2 OTP flow ('1.2')
 │   ├── DataCenterApiV92Interface.php   # v9.2 flow ('9.2')
+│   ├── DataCenterApiV1Interface.php    # v1.0 OTP flow ('1.0')
 │   ├── IpRegistrationApiInterface.php  # standalone putIP service (v1.5)
 │   ├── InquiryApiInterface.php         # standalone estelaam service (v1.4)
 │   ├── ResellerApiInterface.php        # standalone reseller service (v9.4)
 │   ├── HttpClientInterface.php
-│   └── ServiceDataInterface.php
+│   ├── ServiceDataInterface.php
+│   ├── ServiceDataV94Interface.php     # marker: service DTOs v94() accepts
+│   └── ServiceDataV12Interface.php     # marker: service DTOs v12() accepts
 ├── DTOs/                   # Data Transfer Objects (type-safe)
 │   ├── Address/
 │   │   ├── AddressDTO.php               (shared)
@@ -1033,14 +1377,19 @@ src/
 │   │   ├── ResellerServiceUpdateDTO.php
 │   │   └── CustomerUpdateResellerDTO.php
 │   ├── Person/
-│   │   ├── NaturalPersonV1DTO.php         (natural person — v1.0 OTP)
-│   │   ├── LegalPersonV1DTO.php           (legal person — v1.0 OTP)
+│   │   ├── NaturalPersonV1DTO.php         (natural person — v1.0 & v1.2 OTP)
+│   │   ├── LegalPersonV1DTO.php           (legal person — v1.0 & v1.2 OTP)
 │   │   ├── LegalPersonUpdateV1DTO.php     (v1.0)
-│   │   ├── NaturalPersonV92DTO.php      (natural person — v9.2)
-│   │   ├── LegalPersonV92DTO.php        (legal person — v9.2)
-│   │   └── CustomerUpdateV92DTO.php     (customer update — v9.2)
-│   └── Service/                         # all shared by both versions
-│       ├── SharedWebHostingServiceDTO.php
+│   │   ├── NaturalPersonV92DTO.php      (natural person — v9.2 & v9.4)
+│   │   ├── LegalPersonV92DTO.php        (legal person — v9.2 & v9.4)
+│   │   └── CustomerUpdateV92DTO.php     (customer update — v9.2 & v9.4)
+│   └── Service/
+│       ├── Base/                        # register fields shared by the V94/V12 DTOs
+│       ├── {SharedWebHosting,Vps,DedicatedColocation,Cdn}ServiceV94DTO.php   # v9.4
+│       ├── {SharedWebHosting,Vps,DedicatedColocation,Cdn}UpdateV94DTO.php    # v9.4
+│       ├── {SharedWebHosting,Vps,DedicatedColocation,Cdn}ServiceV12DTO.php   # v1.2
+│       ├── {SharedWebHosting,Vps,DedicatedColocation,Cdn}UpdateV12DTO.php    # v1.2
+│       ├── SharedWebHostingServiceDTO.php   # unsuffixed: ips-based, v9.2 & v1.0
 │       ├── VpsServiceDTO.php
 │       ├── DedicatedColocationServiceDTO.php
 │       ├── CdnServiceDTO.php
@@ -1062,8 +1411,10 @@ src/
 │   ├── ShahkarHttpClient.php
 │   └── Responses/ApiResponse.php
 ├── Services/
-│   ├── DataCenterApiServiceV1.php        # v1.0 OTP flow ('1.0')
+│   ├── DataCenterApiServiceV94.php     # v9.4 flow ('9.4')
+│   ├── DataCenterApiServiceV12.php     # v1.2 OTP flow ('1.2')
 │   ├── DataCenterApiServiceV92.php     # v9.2 flow ('9.2')
+│   ├── DataCenterApiServiceV1.php      # v1.0 OTP flow ('1.0')
 │   ├── IpRegistrationApiService.php    # standalone putIP service (v1.5)
 │   ├── InquiryApiService.php           # standalone estelaam service (v1.4)
 │   └── ResellerApiService.php          # standalone reseller service (v9.4)
