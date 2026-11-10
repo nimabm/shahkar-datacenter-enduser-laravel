@@ -3,15 +3,19 @@
 namespace Shahkar\DataCenter;
 
 use Illuminate\Support\ServiceProvider;
+use Shahkar\DataCenter\Contracts\DataCenterApiV12Interface;
 use Shahkar\DataCenter\Contracts\DataCenterApiV1Interface;
 use Shahkar\DataCenter\Contracts\DataCenterApiV92Interface;
+use Shahkar\DataCenter\Contracts\DataCenterApiV94Interface;
 use Shahkar\DataCenter\Contracts\HttpClientInterface;
 use Shahkar\DataCenter\Contracts\IpRegistrationApiInterface;
 use Shahkar\DataCenter\Contracts\InquiryApiInterface;
 use Shahkar\DataCenter\Contracts\ResellerApiInterface;
 use Shahkar\DataCenter\Http\ShahkarHttpClient;
 use Shahkar\DataCenter\Services\DataCenterApiServiceV1;
+use Shahkar\DataCenter\Services\DataCenterApiServiceV12;
 use Shahkar\DataCenter\Services\DataCenterApiServiceV92;
+use Shahkar\DataCenter\Services\DataCenterApiServiceV94;
 use Shahkar\DataCenter\Services\InquiryApiService;
 use Shahkar\DataCenter\Services\IpRegistrationApiService;
 use Shahkar\DataCenter\Services\ResellerApiService;
@@ -47,10 +51,25 @@ class ShahkarDataCenterServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->singleton(DataCenterApiV12Interface::class, function ($app) {
+            return new DataCenterApiServiceV12(
+                $app->make(HttpClientInterface::class),
+                config('shahkar-datacenter.operator_id', '013'),
+            );
+        });
+
+        $this->app->singleton(DataCenterApiV94Interface::class, function ($app) {
+            return new DataCenterApiServiceV94(
+                $app->make(HttpClientInterface::class),
+                config('shahkar-datacenter.operator_id', '013'),
+                config('shahkar-datacenter.reseller_code', ''),
+            );
+        });
+
         $this->app->singleton(ShahkarDataCenterManager::class, function ($app) {
             return new ShahkarDataCenterManager(
                 $app,
-                config('shahkar-datacenter.default_version', '9.2'),
+                config('shahkar-datacenter.default_version', '9.4'),
             );
         });
 
